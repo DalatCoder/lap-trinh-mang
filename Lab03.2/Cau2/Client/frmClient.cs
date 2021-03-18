@@ -35,7 +35,7 @@ namespace Client
 
         private void frmClient_Load(object sender, EventArgs e)
         {
-
+            btnConnect.PerformClick();
         }
 
         void ConnectToServer()
@@ -154,6 +154,13 @@ namespace Client
             }
 
             lbMain.ScrollControlIntoView(row);
+        }
+
+        private void frmClient_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            string message = "client_exit";
+            byte[] data = Encoding.ASCII.GetBytes(message);
+            serverSocket.Send(data, data.Length);
         }
     }
 }

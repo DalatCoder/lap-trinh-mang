@@ -22,6 +22,7 @@ namespace Client
             frmClient frm = new frmClient(txtNickname.Text);
             this.Hide();
             frm.ShowDialog();
+            this.Show();
         }
     }
 }

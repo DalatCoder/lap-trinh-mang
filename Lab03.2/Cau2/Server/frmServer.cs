@@ -19,11 +19,11 @@ namespace Server
         IPEndPoint clientEndpoint;
 
         List<User> users = new List<User>();
-        List<Form> remoteScreens = new List<Form>();
+        List<clientForm> remoteScreens = new List<clientForm>();
 
         public frmServer()
         {
-            CheckForIllegalCrossThreadCalls = false; 
+            CheckForIllegalCrossThreadCalls = false;
             InitializeComponent();
 
             lbClients.DoubleClick += LbClients_DoubleClick;
@@ -37,17 +37,26 @@ namespace Server
             string userNickname = lbClients.SelectedItem.ToString();
             User user = users.Find(u => u.Nickname.Equals(userNickname));
 
-            clientForm frm = new clientForm(user, SendData);
+            clientForm frm = new clientForm(user);
+            frm.OnSendButtonPressed += OnSendButtonPressedHandler;
+            frm.OnClientFormClosing += OnClientFormClosingHandler;
 
             frm.Show();
 
             remoteScreens.Add(frm);
         }
 
-        void SendData(string str, IPEndPoint remoteEndpoint)
+        void OnSendButtonPressedHandler(string str, IPEndPoint remoteEndpoint)
         {
             byte[] data = Encoding.ASCII.GetBytes(str);
             serverSocket.Send(data, data.Length, remoteEndpoint);
+
+            lbClientMessages.Items.Add("Admin to " + remoteEndpoint + ": " + str);
+        }
+
+        void OnClientFormClosingHandler(clientForm frm)
+        {
+            remoteScreens.Remove(frm);
         }
 
         void StartServer()
@@ -57,47 +66,79 @@ namespace Server
 
             clientEndpoint = new IPEndPoint(IPAddress.Any, 0);
 
-            lbClientMessages.Items.Add("Dang cho client ket noi den...");
+            lbClientMessages.Items.Add("Server khoi dong tai dia chi: " + serverEndpoint);
 
-            byte[] data = new byte[2048];
+            byte[] buffer;
 
             string dataStr;
 
             while (true)
             {
-                data = serverSocket.Receive(ref clientEndpoint);
+                try
+                {
+                    buffer = serverSocket.Receive(ref clientEndpoint);
+                }
+                catch
+                {
+                    break;
+                }
+
+                dataStr = Encoding.ASCII.GetString(buffer, 0, buffer.Length);
+
+                if (IsNewClientConnection(clientEndpoint))
+                {
+                    string userNickname = dataStr;
+                    lbClients.Items.Add(userNickname);
+                    users.Add(new User(userNickname, clientEndpoint));
+                    lbClientMessages.Items.Add(clientEndpoint + ": Vua ket noi vao he thong.");
+
+                    dataStr = "Xin chao client";
+                    buffer = Encoding.ASCII.GetBytes(dataStr);
+
+                    serverSocket.Send(buffer, buffer.Length, clientEndpoint);
+                }
+                
+                if (dataStr.Equals("client_exit"))
+                {
+                    lbClientMessages.Items.Add(clientEndpoint + ": Vua ngat ket noi.");
+
+                    foreach (clientForm form in remoteScreens)
+                    {
+                        if (clientEndpoint.ToString().Equals(form.RemoteEndpoint.ToString()))
+                        {
+                            form.Close();
+                            break;
+                        }
+                    }
+
+                    User user = users.Find(u => u.IpEndpoint.ToString().Equals(clientEndpoint.ToString()));
+
+                    if (user != null)
+                    {
+                        users.Remove(user);
+
+                        foreach (var item in lbClients.Items)
+                        {
+                            if (item.ToString().Equals(user.Nickname))
+                            {
+                                lbClients.Items.Remove(item);
+                                break;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    lbClientMessages.Items.Add(clientEndpoint + ": " + dataStr);
+                }
 
                 foreach (clientForm form in remoteScreens)
                 {
                     if (clientEndpoint.ToString().Equals(form.RemoteEndpoint.ToString()))
                     {
-                        form.AppendMessage(Encoding.ASCII.GetString(data, 0, data.Length));
+                        form.AppendMessage(dataStr);
+                        break;
                     }
-                }
-
-                if (IsNewClientConnection(clientEndpoint))
-                {
-                    lbClientMessages.Items.Add("Thong tin client ket noi: " + clientEndpoint);
-
-                    dataStr = Encoding.ASCII.GetString(data, 0, data.Length);
-
-                    // lbClients.Items.Add(clientEndpoint.ToString());
-                    lbClients.Items.Add(dataStr);
-
-                    users.Add(new User(dataStr, clientEndpoint));
-
-                    lbClientMessages.Items.Add(clientEndpoint + ": " + dataStr);
-
-                    dataStr = "Xin chao client";
-                    data = Encoding.ASCII.GetBytes(dataStr);
-
-                    serverSocket.Send(data, data.Length, clientEndpoint);
-                }
-                else
-                {
-
-                    dataStr = Encoding.ASCII.GetString(data, 0, data.Length);
-                    lbClientMessages.Items.Add(clientEndpoint + ": " + dataStr);
                 }
             }
         }
@@ -127,6 +168,11 @@ namespace Server
         private void frmServer_Load(object sender, EventArgs e)
         {
             btnStart.PerformClick();
+        }
+
+        private void frmServer_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            serverSocket.Close();
         }
     }
 }

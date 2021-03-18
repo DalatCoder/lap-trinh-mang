@@ -23,7 +23,7 @@ namespace Client
         public void SetMessageContent(string message, string nickane = "Admin", bool isSender = true)
         {
             txtMessageContent.Text = message;      
-            txtTime.Text = DateTime.Now.ToString("hh:MM:ss");
+            txtTime.Text = DateTime.Now.ToString("hh:MM:ss tt");
             txtUsername.Text = nickane;
 
             int lineheight = 3;
@@ -37,12 +37,14 @@ namespace Client
                 txtMessageContent.TextAlign = HorizontalAlignment.Right;
                 txtTime.TextAlign = HorizontalAlignment.Right;
                 txtUsername.TextAlign = HorizontalAlignment.Right;
+                txtUsername.ForeColor = Color.DarkOrchid;
             }
             else
             {
                 txtMessageContent.TextAlign = HorizontalAlignment.Left;
                 txtTime.TextAlign = HorizontalAlignment.Left;
                 txtUsername.TextAlign = HorizontalAlignment.Left;
+                txtUsername.ForeColor = Color.DarkOrange;
             }
         }
 

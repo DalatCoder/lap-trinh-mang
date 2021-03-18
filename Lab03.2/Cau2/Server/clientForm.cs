@@ -15,12 +15,36 @@ namespace Server
 {
     public partial class clientForm : Form
     {
-        Action<string, IPEndPoint> onButtonPressed;
+        private event Action<string, IPEndPoint> _onSendButtonPressed;
+        public event Action<string, IPEndPoint> OnSendButtonPressed
+        {
+            add
+            {
+                _onSendButtonPressed += value;
+            }
+            remove
+            {
+                _onSendButtonPressed -= value;
+            }
+        }
+
+        private event Action<clientForm> _onClientFormClosing;
+        public event Action<clientForm> OnClientFormClosing
+        {
+            add
+            {
+                _onClientFormClosing += value;
+            }
+            remove
+            {
+                _onClientFormClosing -= value;
+            }
+        }
 
         public IPEndPoint RemoteEndpoint { get; private set; }
         public string UserNickname { get; private set; }
 
-        public clientForm(User user, Action<string, IPEndPoint> onButtonPressed)
+        public clientForm(User user)
         {
             CheckForIllegalCrossThreadCalls = false;
             InitializeComponent();
@@ -31,7 +55,6 @@ namespace Server
             lbMain.VerticalScroll.Visible = true;
 
             txtClientIP.Text = "Chat with: " + user.Nickname;
-            this.onButtonPressed = onButtonPressed;
         }
 
         private void clientForm_Load(object sender, EventArgs e)
@@ -59,7 +82,7 @@ namespace Server
 
             lbMain.Controls.Add(row);
 
-            onButtonPressed(txtInput.Text, RemoteEndpoint);
+            _onSendButtonPressed?.Invoke(txtInput.Text, RemoteEndpoint);
 
             txtInput.Text = "";
 
@@ -105,6 +128,11 @@ namespace Server
                 }
                 lbMain.ScrollControlIntoView(row);
             }
+        }
+
+        private void clientForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            _onClientFormClosing?.Invoke(this);
         }
     }
 }

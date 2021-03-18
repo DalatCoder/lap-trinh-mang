@@ -45,7 +45,7 @@
             this.groupBox1.Size = new System.Drawing.Size(352, 415);
             this.groupBox1.TabIndex = 0;
             this.groupBox1.TabStop = false;
-            this.groupBox1.Text = "Client Messages";
+            this.groupBox1.Text = "Logs";
             // 
             // lbClientMessages
             // 
@@ -99,6 +99,7 @@
             this.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.Name = "frmServer";
             this.Text = "Server";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.frmServer_FormClosing);
             this.Load += new System.EventHandler(this.frmServer_Load);
             this.groupBox1.ResumeLayout(false);
             this.groupBox2.ResumeLayout(false);
