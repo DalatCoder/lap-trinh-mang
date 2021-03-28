@@ -1,16 +1,12 @@
-﻿using System;
+﻿using Common;
+using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Server
@@ -86,7 +82,15 @@ namespace Server
         void Send(Socket client)
         {
             if (!string.IsNullOrWhiteSpace(txtInput.Text))
-                client.Send(Serialize(txtInput.Text));       
+            {
+                ServerResponse response = new ServerResponse()
+                {
+                    Type = ServerResponseType.SendString,
+                    Data = txtInput.Text
+                };
+
+                client.Send(Serialize(response));
+            }       
         }
 
         /// <summary>
@@ -103,9 +107,33 @@ namespace Server
                     byte[] buffer = new byte[1024 * 5000];
                     client.Receive(buffer);
 
-                    string message = (string)Deserialize(buffer);
+                    ServerResponse response = (ServerResponse)Deserialize(buffer);
 
-                    AddMessage(client.RemoteEndPoint.ToString() + ": " + message);
+                    switch (response.Type)
+                    {
+                        case ServerResponseType.SendString:
+                            AddMessage(client.RemoteEndPoint.ToString() + ": " + (string)response.Data);
+                            break;
+                        case ServerResponseType.SendStudentList:
+                            break;
+                        case ServerResponseType.SendBitmap:
+                            break;
+                        
+                        case ServerResponseType.SendDocx:
+                            buffer = (byte[])response.Data;
+
+                            string filename = "file_" + new Random().Next(9999) + ".docx";
+                            AddMessage(client.RemoteEndPoint.ToString() + ": Receive file, save as: " + filename);
+
+                            using (var fileStream = File.Create(filename))
+                            {
+                                fileStream.Write(buffer, 0, buffer.Length);
+                            }
+
+                            break;
+                        default:
+                            break;
+                    }
                 }
             }
             catch
@@ -179,6 +207,31 @@ namespace Server
         private void Server_FormClosing(object sender, FormClosingEventArgs e)
         {
             CloseConnection();
+        }
+
+        private void btnSendImage_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog dialog = new OpenFileDialog();
+            dialog.Filter = "Image Files(*.BMP;*.JPG;*.GIF)|*.BMP;*.JPG;*.GIF;*.PNG;*.JPEG|All files (*.*)|*.*";
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                AddMessage("Open Image: " + dialog.FileName);
+
+                Bitmap image = new Bitmap(dialog.FileName);
+
+                ServerResponse response = new ServerResponse()
+                {
+                    Type = ServerResponseType.SendBitmap,
+                    Data = image
+                };
+
+                byte[] data = Serialize(response);
+
+                foreach (Socket socket in clientList)
+                {
+                    socket.Send(data);
+                }
+            }
         }
     }
 }

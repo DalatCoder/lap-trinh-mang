@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -12,6 +13,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+
+using Common;
 
 namespace Multichat_KTeam
 {
@@ -67,7 +70,15 @@ namespace Multichat_KTeam
         void Send()
         {
             if (!string.IsNullOrWhiteSpace(txtInput.Text))
-                client.Send(Serialize(txtInput.Text));
+            {
+                ServerResponse response = new ServerResponse()
+                {
+                    Type = ServerResponseType.SendString,
+                    Data = txtInput.Text
+                };
+
+                client.Send(Serialize(response));
+            }
         }
 
         /// <summary>
@@ -82,9 +93,26 @@ namespace Multichat_KTeam
                     byte[] buffer = new byte[1024 * 5000];
                     client.Receive(buffer);
 
-                    string message = (string)Deserialize(buffer);
+                    ServerResponse response = (ServerResponse)Deserialize(buffer);
 
-                    AddMessage("Server: " + message);
+                    switch (response.Type)
+                    {
+                        case ServerResponseType.SendString:
+                            AddMessage("Server: " + (string)response.Data);
+                            break;
+
+                        case ServerResponseType.SendStudentList:
+                            break;
+                        case ServerResponseType.SendBitmap:
+                            Bitmap bitmap = response.Data as Bitmap;
+                            string imageName = "image_" + new Random().Next(1000, 9000) + ".jpeg";
+                            bitmap.Save(imageName, ImageFormat.Jpeg);
+
+                            AddMessage("Receive image, save as: " + imageName);
+                            break;
+                        default:
+                            break;
+                    }
                 }
             } 
             catch {
@@ -151,6 +179,34 @@ namespace Multichat_KTeam
             Send();
             AddMessage(txtInput.Text);
             txtInput.Text = "";
+        }
+
+        private void btnSendDocx_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog dialog = new OpenFileDialog();
+            dialog.Filter = "Word Files(*.Doc;*.Docx;)|*.DOC;*.DOCX;|All files (*.*)|*.*";
+
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                // Open Word document using FileStream.
+                FileStream fileStream = new FileStream(dialog.FileName, FileMode.Open);
+
+                // Copy file stream to MemoryStream.
+                MemoryStream memoryStream = new MemoryStream();
+                fileStream.CopyTo(memoryStream);
+
+                // Gets byte array from memory stream of file.
+                byte[] temp = memoryStream.ToArray();
+
+                ServerResponse response = new ServerResponse()
+                {
+                    Type = ServerResponseType.SendDocx,
+                    Data = temp
+                };
+
+                client.Send(Serialize(response));
+                AddMessage("Send Word File: " + dialog.FileName);
+            }
         }
     }
 }
